@@ -1,0 +1,8 @@
+--cpu Cortex-M3 -g --apcs=interwork --pd "__MICROLIB SETA 1"
+-IC:\keil_work\Bootloader_stm32\RTE\Device\STM32F103RC
+-IC:\keil_work\Bootloader_stm32\RTE\_bootloader
+-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.0\CMSIS\Include
+-IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.1.0\Device\Include
+-IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.1.0\Device\StdPeriph_Driver\inc
+--pd "__UVISION_VERSION SETA 522" --pd "_RTE_ SETA 1" --pd "STM32F10X_HD SETA 1"
+--list .\listings\mian.lst --xref -o .\objects\mian.o ".\objects\mian.s"

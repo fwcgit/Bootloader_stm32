@@ -8,7 +8,7 @@ u8  is_rece_stop = 0;
 u8  is_rece_head = 0 ;
 u16 data_len = 0;
 u8  file_download_complete = 0;
-\
+
 void USART1_init(void)
 {
 	GPIO_InitTypeDef 	GPIO_Init_Type_Struct;
@@ -66,6 +66,17 @@ void LOG(char *log)
 
 }
 
+void LOG_SHORT(u16 log)
+{
+		USART1->SR;
+		
+		USART_SendData(USART1,log);
+		while(USART_GetFlagStatus(USART1,USART_FLAG_TC) != SET);
+	
+		USART_SendData(USART1,log>>8);
+		while(USART_GetFlagStatus(USART1,USART_FLAG_TC) != SET);
+}
+
 void LOG_u16(u16 *log,u16 len)
 {
 	u16 i;
@@ -117,47 +128,56 @@ void USART1_IRQHandler(void)
 		
 		r_buff = USART_ReceiveData(USART1);
 		
-		if(r_buff == 0xa0) //包头
+		if(is_rece_head)
+		{
+			rece_buff[rx_index] = r_buff;
+		}
+		
+		if(r_buff == 0xa0 && is_rece_head == 0) //包头
 		{
 			rx_index = 0;
 			data_len = 0;
 			is_rece_head = 1;
 			file_download_complete = 0;
-			
-		}else if(is_rece_head && rx_index == 2)//数据长度
+			rece_buff[rx_index] = r_buff;
+
+		}else if(is_rece_head && rx_index == 3)//数据长度
 		{
 				
-				data_len = r_buff ;
-				data_len = data_len << 8 | rece_buff[1];
-			
-		}else if(is_rece_head && rx_index == 1)//数据传输完成
-		{
-				rx_index = 0;
-				is_rece_head = 0;
-				is_rece_stop = 0;
-			
-				if(r_buff == 0x1a)
-					file_download_complete = 1;
+				data_len = rece_buff[3];
+				data_len = data_len << 8 | rece_buff[2];
 				
-		}else if(is_rece_head && rx_index == 1)
-		{
-				if(r_buff == 0xa1)
-						IAP_RESET();
+			
 		}
 		
-		if(is_rece_head)
+		if(is_rece_head && rx_index >= 3 && data_len == rx_index -3)
 		{
-			rece_buff[rx_index++] = r_buff;
-		}
-		
-		if(data_len == rx_index -3)
-		{
+			
+			rx_index = 0;
+			is_rece_head = 0;
+			data_len = 0;
+				
+			if(rece_buff[1] == 0xa1)
+			{
 				rx_index = 0;
 				is_rece_head = 0;
+				IAP_RESET();
+			}
+			else if(rece_buff[1] == 0x1a)//数据传输完成
+			{
+				rx_index = 0;
+				is_rece_head = 0;
+				file_download_complete = 1;
+			}
+			else
+			{
 				is_rece_stop = 1;
+			}
+			
 		}
 		
-		
+		rx_index++;
+	
 		USART_ClearITPendingBit(USART1,USART_FLAG_RXNE);
 	}
 }

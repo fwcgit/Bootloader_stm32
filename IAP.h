@@ -9,4 +9,8 @@ void IAP_RESET(void);
 
 void rece_ack(void);
 
+void start_app(void);
+
+void start_IAP(void);
+
 #endif

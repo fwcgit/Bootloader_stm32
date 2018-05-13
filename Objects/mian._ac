@@ -1,0 +1,2 @@
+--target=arm-arm-none-eabi -mcpu=cortex-m3 -c
+-o ./objects/mian.o "./objects/mian.s"

@@ -2,40 +2,61 @@
 #include "flash.h"
 #include <string.h>
 
-u16 pageIndex = 0;
+u32 start_addr = FLASH_ApplitionAddr;
+
+typedef void (*IAPFun)(void);
+IAPFun Jump_To_Application;
 
 void rece_ack(void)
 {
-		u8 dat[2] = {0xa0,0x80};
-		
-		send_data(dat,2);
+		u8 dat[4] = {0xa0,0x80,0x00,0x00};
+		send_data(dat,4);
 }
 
 void wirte_flash(void)
 {
-	u16 i;
-	u8 data_len = get_data_len();
-	u8 dst_data[data_len];
-	uint16_t file_data[data_len/2 +1];
+	u16 i,j,temp;
+	u32 offsetAddr,pageAddr,pageIndex;
+	
+	
+	u16 data_len;
 	u8 *src_data = get_USART1_RECE_BUFF();
-	memcpy(src_data+3,dst_data,data_len);
 	
-	for(i = 0 ; i < data_len/2;i+=2)
-	{
+	data_len = src_data[3];
+	data_len = data_len << 8 | src_data[2];
+	
+	LOG_SHORT(data_len);
+	
+	data_len = data_len + 4;
+	
+	offsetAddr = start_addr - FLASH_BASE;
+	pageIndex	 = offsetAddr / PAGE_SIZE;
+	pageAddr	 = pageIndex * PAGE_SIZE + FLASH_BASE;
+	
+	FLASH_Unlock();
+	FLASH_ErasePage(pageAddr);
 		
-			file_data[i] = dst_data[i+1];
-			
-			file_data[i] = (file_data[i] << 8) | dst_data[i];
-	}
-	
-	if(data_len % 2 != 0)
+	for(i = 4 ,j = 0 ; i < data_len;i+=2,j++)
 	{
-		file_data[data_len/2+1] = dst_data[data_len-1];
+			
+			if(i+1 < data_len)
+			{
+				temp = src_data[i+1] & 0x00ff;
+				temp = (temp << 8)&0xff00;
+				temp = temp | (src_data[i]&0x00ff);
+			}
+			else
+			{
+				temp = src_data[i];
+			}
+			
+			FLASH_ProgramHalfWord(start_addr+j*2,temp);
+			
 	}
 	
-	write_flash_array_data(ApplitionAddr+pageIndex*PAGE_SIZE,file_data,PAGE_SIZE);
+	start_addr = start_addr+j*2;
 	
-	pageIndex++;
+	FLASH_Lock();
 	
 	rece_ack();
 }
@@ -43,19 +64,42 @@ void wirte_flash(void)
 void start_app(void)
 {
 	
-	write_flash_short_data(0X08002800,0Xf080);
+		vu32 JumpAddress;
+		write_flash_short_data(0X08032800,0Xf080);
+		
+		__disable_irq();
 	
-	NVIC_SetVectorTable(NVIC_VectTab_FLASH, VectorTable_Offset);
-	SystemInit ();
-	SCB->VTOR = FLASH_BASE | VectorTable_Offset;
+		JumpAddress = *(__IO uint32_t*) (ApplitionAddr + 4);  
+		Jump_To_Application = (IAPFun) (JumpAddress);  
+
+		__set_MSP(*(__IO uint32_t*) ApplitionAddr);  
+		Jump_To_Application();
 	
+		__enable_irq();
+}
+
+void start_IAP(void)
+{
+		vu32 JumpAddress;
+		write_flash_short_data(0X08032800,0Xff80);
+		
+		__disable_irq();
+	
+		JumpAddress = *(__IO uint32_t*) (IAP_ApplitionAddr + 4);  
+		Jump_To_Application = (IAPFun) (JumpAddress);  
+
+		__set_MSP(*(__IO uint32_t*) IAP_ApplitionAddr);  
+		Jump_To_Application();
+	
+		__enable_irq();
 }
 
 void listener_USART1_data(void)
 {
-	 u8 *rece, *download;
+	u8 *rece, *download;
 	rece = get_USART1_rece_complete();
 	download = get_file_download_complete();
+
 	
 	if(*rece)
 	{
@@ -73,6 +117,7 @@ void listener_USART1_data(void)
 
 void IAP_RESET(void)
 {
-	pageIndex = 0;
+	write_flash_short_data(0X08032800,0Xff80);
+	start_addr = FLASH_ApplitionAddr;
 	rece_ack();
 }

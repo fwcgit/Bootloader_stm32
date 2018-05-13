@@ -61,9 +61,28 @@ u8 	write_flash_short_data(uint32_t start_addr,uint16_t data)
 		FLASH_Unlock();
 		FLASH_ErasePage(pageAddr);
 		FLASH_ProgramHalfWord(start_addr,data);
-		FLASH_Unlock();
+		FLASH_Lock();
 	
 		return 0;
 }
+
+u8 	write_flash_wold(uint32_t start_addr,uint32_t data)
+{
+		u32 offsetAddr,pageIndex,pageAddr;
+	
+		if(start_addr < FLASH_BASE) return 1;
+	
+		offsetAddr = start_addr - FLASH_BASE;
+		pageIndex	 = offsetAddr / PAGE_SIZE;
+		pageAddr	 = pageIndex * PAGE_SIZE + FLASH_BASE;
+	
+		FLASH_Unlock();
+		FLASH_ErasePage(pageAddr);
+		FLASH_ProgramWord(start_addr,data);
+		FLASH_Lock();
+	
+		return 0;
+}
+
 
 	

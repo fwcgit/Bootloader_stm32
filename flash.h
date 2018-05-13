@@ -12,4 +12,6 @@ u8 	write_flash_array_data(uint32_t start_addr,uint16_t *data,uint32_t len);
 
 u8 	write_flash_short_data(uint32_t start_addr,uint16_t data);
 
+u8 	write_flash_wold(uint32_t start_addr,uint32_t data);
+
 #endif
